@@ -1,4 +1,4 @@
-name: "Deploy to GitHub Pages"
+name: "Build and Deploy"
 
 on:
   push:
@@ -7,7 +7,8 @@ on:
 
 env:
   GODOT_VERSION: 4.5.1
-  EXPORT_NAME: Web
+  EXPORT_NAME_WEB: Web
+  EXPORT_NAME_WIN: "Windows Desktop"
 
 jobs:
   export_web:
@@ -45,13 +46,12 @@ jobs:
       - name: Web Build
         run: |
           mkdir -p build/web
-          godot --headless --verbose --export-release "${{ env.EXPORT_NAME }}" build/web/index.html
+          godot --headless --verbose --export-release "${{ env.EXPORT_NAME_WEB }}" build/web/index.html
 
       - name: Add .nojekyll
         run: touch build/web/.nojekyll
 
       - name: Add COOP/COEP headers
-        # Godot 4 Web requires these headers for SharedArrayBuffer support
         run: |
           cd build/web
           echo '/*
@@ -63,3 +63,43 @@ jobs:
         with:
           folder: build/web
           branch: gh-pages
+
+  export_windows:
+    name: Windows Export
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          use-dotnet: false
+
+      - name: Cache Export Templates
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-export-templates-${{ env.GODOT_VERSION }}
+
+      - name: Setup Export Templates
+        if: steps.cache-templates.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          wget https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-stable/Godot_v${{ env.GODOT_VERSION }}-stable_export_templates.tpz
+          unzip Godot_v${{ env.GODOT_VERSION }}-stable_export_templates.tpz
+          mv templates/* ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable/
+          rm -f Godot_v${{ env.GODOT_VERSION }}-stable_export_templates.tpz
+
+      - name: Windows Build
+        run: |
+          mkdir -p build/windows
+          godot --headless --verbose --export-release "${{ env.EXPORT_NAME_WIN }}" build/windows/rune-terrain.exe
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rune-terrain-windows
+          path: build/windows
