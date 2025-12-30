@@ -9,12 +9,28 @@ extends TileMapLayer
 @export var noise_frequency: float = 0.05
 @export var seed_random: bool = true
 
-# Diccionario de Biomas: Color, Sólido (Colisión), Fricción
+# Definición de Colores de la Paleta
+const C_AGUA_PROF = Color("#2a3b4e")
+const C_AGUA      = Color("#4fa4b8")
+const C_ARENA     = Color("#e8c170")
+const C_PASTO     = Color("#92c86e")
+const C_ROCA      = Color("#5c5e60")
+const C_NIEVE     = Color("#dcebf5")
+
+# Diccionario de Biomas
+# mix_color: El color secundario para hacer el efecto de ruido
+# mix_ratio: Cuánto del color secundario aparece (0.0 a 1.0)
 var biomas = {
-	0: {"name": "Muro",   "color": Color("#1e1e2e"), "solid": true},   # Gris Oscuro
-	1: {"name": "Piso",   "color": Color("#a6e3a1"), "solid": false},  # Verde
-	2: {"name": "Hielo",  "color": Color("#89dceb"), "solid": false},  # Cian (Prueba de Física)
-	3: {"name": "Agua",   "color": Color("#1fb6ff"), "solid": true}    # Azul
+	0: {"name": "Agua Profunda", "color": C_AGUA_PROF, "solid": true},
+	1: {"name": "Agua",          "color": C_AGUA,      "solid": true},
+	2: {"name": "Agua -> Arena", "color": C_AGUA,      "mix_color": C_ARENA, "mix_ratio": 0.4, "solid": true},
+	3: {"name": "Arena",         "color": C_ARENA,     "solid": false},
+	4: {"name": "Arena -> Pasto","color": C_ARENA,     "mix_color": C_PASTO, "mix_ratio": 0.3, "solid": false},
+	5: {"name": "Pasto",         "color": C_PASTO,     "solid": false},
+	6: {"name": "Pasto -> Roca", "color": C_PASTO,     "mix_color": C_ROCA,  "mix_ratio": 0.3, "solid": false},
+	7: {"name": "Roca",          "color": C_ROCA,      "solid": true},
+	8: {"name": "Roca -> Nieve", "color": C_ROCA,      "mix_color": C_NIEVE, "mix_ratio": 0.4, "solid": true},
+	9: {"name": "Nieve",         "color": C_NIEVE,     "solid": true}
 }
 
 func _ready():
@@ -24,22 +40,37 @@ func _ready():
 	generate_world()
 
 func _input(event):
-	# Regenerar con la tecla 'R' o Espacio
 	if event.is_action_pressed("ui_accept"): 
 		generate_world()
 
 func setup_atlas_and_physics():
 	var ts = TileSet.new()
 	ts.tile_size = Vector2i(tile_size, tile_size)
-	ts.add_physics_layer(0) # Capa 0 para colisiones estándar
+	ts.add_physics_layer(0)
 	
-	# 1. Preparar la imagen (Textura)
+	# 1. Preparar la imagen
 	var img = Image.create(tile_size * biomas.size(), tile_size, false, Image.FORMAT_RGBA8)
 	
 	var i = 0
 	for id in biomas:
-		var color = biomas[id]["color"]
-		img.fill_rect(Rect2i(i * tile_size, 0, tile_size, tile_size), color)
+		var base_color = biomas[id]["color"]
+		
+		# Generación Procedural de Textura (Pixel por Pixel)
+		for x in range(tile_size):
+			for y in range(tile_size):
+				var final_color = base_color
+				
+				# Si tiene mezcla, aplicamos "ruido"
+				if biomas[id].has("mix_color"):
+					var mix_color = biomas[id]["mix_color"]
+					var ratio = biomas[id]["mix_ratio"]
+					
+					# Probabilidad simple para el efecto de "salpicado"
+					if randf() < ratio:
+						final_color = mix_color
+				
+				img.set_pixel( (i * tile_size) + x, y, final_color )
+		
 		i += 1
 	
 	# 2. Configurar el Source
@@ -47,7 +78,6 @@ func setup_atlas_and_physics():
 	source.texture = ImageTexture.create_from_image(img)
 	source.texture_region_size = Vector2i(tile_size, tile_size)
 	
-	# Agregamos el source al TileSet ANTES de crear tiles para asegurar consistencia
 	ts.add_source(source)
 	
 	# 3. Crear tiles y físicas
@@ -56,7 +86,6 @@ func setup_atlas_and_physics():
 		var coords = Vector2i(i, 0)
 		source.create_tile(coords)
 		
-		# Configuración de Colisiones para Godot 4.5
 		if biomas[id]["solid"]:
 			var data = source.get_tile_data(coords, 0)
 			if data:
@@ -78,15 +107,33 @@ func generate_world():
 	noise.seed = randi()
 	noise.frequency = noise_frequency
 	noise.noise_type = FastNoiseLite.TYPE_PERLIN
+	noise.fractal_octaves = 4 # Más detalle para transiciones suaves
 	
 	for x in range(width):
 		for y in range(height):
 			var v = noise.get_noise_2d(x, y)
-			var tile_id = 1 # Suelo normal por defecto
+			var tile_id = 1 
 			
-			# Lógica de distribución de terreno
-			if v < -0.35: tile_id = 3   # Agua profunda
-			elif v < -0.15: tile_id = 2  # Hielo/Resbaladizo
-			elif v > 0.45: tile_id = 0   # Muros/Montañas
+			# Lógica de distribución ajustada para transiciones
+			if v < -0.4:   tile_id = 0 # Agua Profunda
+			elif v < -0.2: tile_id = 1 # Agua
+			elif v < -0.1: tile_id = 2 # Transición Agua -> Arena (Orilla)
+			elif v < 0.05: tile_id = 3 # Arena
+			elif v < 0.15: tile_id = 4 # Transición Arena -> Pasto
+			elif v < 0.4:  tile_id = 5 # Pasto
+			elif v < 0.5:  tile_id = 6 # Transición Pasto -> Roca
+			elif v < 0.65: tile_id = 7 # Roca
+			elif v < 0.75: tile_id = 8 # Transición Roca -> Nieve
+			else:          tile_id = 9 # Nieve
 			
 			set_cell(Vector2i(x, y), 0, Vector2i(tile_id, 0))
+	
+	update_camera_limits()
+
+func update_camera_limits():
+	var camera = get_node_or_null("../Jugador/Camera2D")
+	if camera:
+		camera.limit_left = 0
+		camera.limit_top = 0
+		camera.limit_right = width * tile_size
+		camera.limit_bottom = height * tile_size
