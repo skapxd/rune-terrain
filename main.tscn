@@ -1,7 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://dxsuy2yy2raty"]
+[gd_scene load_steps=7 format=3 uid="uid://dxsuy2yy2raty"]
 
-[ext_resource type="Script" path="res://world_generator.gd" id="1_world"]
-[ext_resource type="Script" path="res://player.gd" id="2_player"]
+[ext_resource type="Script" uid="uid://wst5gdfitwfv" path="res://world_generator.gd" id="1_world"]
+[ext_resource type="Script" uid="uid://ck80pq4kajixj" path="res://player.gd" id="2_player"]
+[ext_resource type="Script" path="res://ui_controller.gd" id="3_ui"]
 
 [sub_resource type="Gradient" id="Gradient_player"]
 offsets = PackedFloat32Array(0)
@@ -19,6 +20,8 @@ radius = 16.0
 
 [node name="GeneradorDeMundo" type="TileMapLayer" parent="."]
 script = ExtResource("1_world")
+width = 500
+height = 500
 
 [node name="Jugador" type="CharacterBody2D" parent="."]
 position = Vector2(200, 200)
@@ -32,3 +35,20 @@ shape = SubResource("CircleShape2D_1")
 
 [node name="Camera2D" type="Camera2D" parent="Jugador"]
 position_smoothing_enabled = true
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+script = ExtResource("3_ui")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer"]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 160.0
+offset_bottom = 90.0
+
+[node name="BtnGenerate" type="Button" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+text = "Generar Mapa"
+
+[node name="BtnSave" type="Button" parent="CanvasLayer/VBoxContainer"]
+layout_mode = 2
+text = "Guardar JSON"

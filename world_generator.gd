@@ -18,8 +18,6 @@ const C_ROCA      = Color("#5c5e60")
 const C_NIEVE     = Color("#dcebf5")
 
 # Diccionario de Biomas
-# mix_color: El color secundario para hacer el efecto de ruido
-# mix_ratio: Cuánto del color secundario aparece (0.0 a 1.0)
 var biomas = {
 	0: {"name": "Agua Profunda", "color": C_AGUA_PROF, "solid": true},
 	1: {"name": "Agua",          "color": C_AGUA,      "solid": true},
@@ -34,14 +32,35 @@ var biomas = {
 }
 
 func _ready():
-	if seed_random:
-		randomize()
-	setup_atlas_and_physics()
-	generate_world()
+	# Try to load existing map first
+	var loaded = MapLoader.load_map(self)
+	
+	if loaded:
+		print("Mapa cargado desde JSON.")
+		update_camera_limits()
+	else:
+		print("Generando nuevo mapa...")
+		if seed_random:
+			randomize()
+		setup_atlas_and_physics()
+		generate_world()
 
 func _input(event):
 	if event.is_action_pressed("ui_accept"): 
 		generate_world()
+
+# Called by UI button
+func on_generate_pressed():
+	setup_atlas_and_physics() # Ensure atlas is fresh/reset
+	generate_world()
+
+# Called by UI button
+func on_save_pressed():
+	# Convert biomas colors to hex strings for JSON safety if needed, 
+	# but Color works with JSON.stringify in Godot 4 (saves as html string usually).
+	# However, MapLoader expects to read them back.
+	# Let's pass the dictionary directly.
+	MapLoader.save_map(self, biomas, tile_size)
 
 func setup_atlas_and_physics():
 	var ts = TileSet.new()
@@ -107,24 +126,32 @@ func generate_world():
 	noise.seed = randi()
 	noise.frequency = noise_frequency
 	noise.noise_type = FastNoiseLite.TYPE_PERLIN
-	noise.fractal_octaves = 4 # Más detalle para transiciones suaves
+	noise.fractal_octaves = 4
 	
 	for x in range(width):
 		for y in range(height):
 			var v = noise.get_noise_2d(x, y)
 			var tile_id = 1 
 			
-			# Lógica de distribución ajustada para transiciones
-			if v < -0.4:   tile_id = 0 # Agua Profunda
-			elif v < -0.2: tile_id = 1 # Agua
-			elif v < -0.1: tile_id = 2 # Transición Agua -> Arena (Orilla)
-			elif v < 0.05: tile_id = 3 # Arena
-			elif v < 0.15: tile_id = 4 # Transición Arena -> Pasto
-			elif v < 0.4:  tile_id = 5 # Pasto
-			elif v < 0.5:  tile_id = 6 # Transición Pasto -> Roca
-			elif v < 0.65: tile_id = 7 # Roca
-			elif v < 0.75: tile_id = 8 # Transición Roca -> Nieve
-			else:          tile_id = 9 # Nieve
+			if v < -0.4:   tile_id = 0
+			elif v < -0.2: tile_id = 1
+			elif v < -0.1: tile_id = 2
+			elif v < 0.05: tile_id = 3
+			elif v < 0.15: tile_id = 4
+			elif v < 0.4:  tile_id = 5
+			elif v < 0.5:  tile_id = 6
+			elif v < 0.65: tile_id = 7
+			elif v < 0.75: tile_id = 8
+			else:          tile_id = 9
+			
+			# Map the ID to the atlas coordinates.
+			# Our atlas is a horizontal strip. ID 0 is at x=0, ID 1 at x=1, etc.
+			# NOTE: We must ensure this mapping matches the 'i' index used in setup_atlas.
+			# The original code iterated `for id in biomas`. Dictionaries are not ordered in all Godot versions,
+			# but in Godot 4 they preserve insertion order usually.
+			# To be safe, we should assume keys 0..9 map to x 0..9 if defined that way.
+			# The original code used `i` as the x-coordinate.
+			# Let's assume biomas keys 0,1,2... correspond to indices 0,1,2... for now as per original code.
 			
 			set_cell(Vector2i(x, y), 0, Vector2i(tile_id, 0))
 	
