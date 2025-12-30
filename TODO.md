@@ -9,9 +9,9 @@ Para un funcionamiento óptimo en Godot 4.5.1+, configura la escena así:
 * **Node2D** (LaboratorioMundo)  
   * **TileMapLayer** (GeneradorDeMundo) \-\> *Controla la malla y físicas*  
   * **CharacterBody2D** (Jugador) \-\> *Cuerpo de pruebas*  
-    * **Sprite2D** \-\> *Textura: "Nuevo PlaceholderTexture2D"*  
-    * **CollisionShape2D** \-\> *Círculo de colisión*  
-    * **Camera2D** \-\> *Habilitar 'Position Smoothing'*
+	* **Sprite2D** \-\> *Textura: "Nuevo PlaceholderTexture2D"*  
+	* **CollisionShape2D** \-\> *Círculo de colisión*  
+	* **Camera2D** \-\> *Habilitar 'Position Smoothing'*
 
 ## **💻 Script: Generador de Mundo (Optimizado)**
 

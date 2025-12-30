@@ -1,0 +1,34 @@
+[gd_scene load_steps=5 format=3 uid="uid://dxsuy2yy2raty"]
+
+[ext_resource type="Script" path="res://world_generator.gd" id="1_world"]
+[ext_resource type="Script" path="res://player.gd" id="2_player"]
+
+[sub_resource type="Gradient" id="Gradient_player"]
+offsets = PackedFloat32Array(0)
+colors = PackedColorArray(1, 0, 1, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_player"]
+gradient = SubResource("Gradient_player")
+width = 32
+height = 32
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_1"]
+radius = 16.0
+
+[node name="LaboratorioMundo" type="Node2D"]
+
+[node name="GeneradorDeMundo" type="TileMapLayer" parent="."]
+script = ExtResource("1_world")
+
+[node name="Jugador" type="CharacterBody2D" parent="."]
+position = Vector2(200, 200)
+script = ExtResource("2_player")
+
+[node name="Sprite2D" type="Sprite2D" parent="Jugador"]
+texture = SubResource("GradientTexture2D_player")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Jugador"]
+shape = SubResource("CircleShape2D_1")
+
+[node name="Camera2D" type="Camera2D" parent="Jugador"]
+position_smoothing_enabled = true
