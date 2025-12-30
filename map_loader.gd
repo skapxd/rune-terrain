@@ -119,11 +119,13 @@ static func _convert_biome_from_json(biome_data: Dictionary) -> Dictionary:
 	return new_biome
 
 static func _setup_atlas_and_physics(layer: TileMapLayer, biomes: Dictionary, tile_size: int):
+	const ATLAS_SEPARATION = 2
 	var ts = TileSet.new()
 	ts.tile_size = Vector2i(tile_size, tile_size)
 	ts.add_physics_layer(0)
 	
-	var img = Image.create(tile_size * biomes.size(), tile_size, false, Image.FORMAT_RGBA8)
+	var img_width = (tile_size + ATLAS_SEPARATION) * biomes.size()
+	var img = Image.create(img_width, tile_size, false, Image.FORMAT_RGBA8)
 	
 	var i = 0
 	var sorted_keys = biomes.keys()
@@ -136,6 +138,7 @@ static func _setup_atlas_and_physics(layer: TileMapLayer, biomes: Dictionary, ti
 		var biome = biomes[id]
 		var base_color = biome["color"]
 		id_to_atlas_x[id] = i
+		var start_x = i * (tile_size + ATLAS_SEPARATION)
 		
 		for x in range(tile_size):
 			for y in range(tile_size):
@@ -145,12 +148,13 @@ static func _setup_atlas_and_physics(layer: TileMapLayer, biomes: Dictionary, ti
 					var ratio = biome["mix_ratio"]
 					if randf() < ratio:
 						final_color = mix_color
-				img.set_pixel((i * tile_size) + x, y, final_color)
+				img.set_pixel(start_x + x, y, final_color)
 		i += 1
 	
 	var source = TileSetAtlasSource.new()
 	source.texture = ImageTexture.create_from_image(img)
 	source.texture_region_size = Vector2i(tile_size, tile_size)
+	source.separation = Vector2i(ATLAS_SEPARATION, 0)
 	ts.add_source(source)
 	
 	for id in sorted_keys:

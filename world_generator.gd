@@ -63,16 +63,19 @@ func on_save_pressed():
 	MapLoader.save_map(self, biomas, tile_size)
 
 func setup_atlas_and_physics():
+	const ATLAS_SEPARATION = 2
 	var ts = TileSet.new()
 	ts.tile_size = Vector2i(tile_size, tile_size)
 	ts.add_physics_layer(0)
 	
-	# 1. Preparar la imagen
-	var img = Image.create(tile_size * biomas.size(), tile_size, false, Image.FORMAT_RGBA8)
+	# 1. Preparar la imagen (Include separation space)
+	var img_width = (tile_size + ATLAS_SEPARATION) * biomas.size()
+	var img = Image.create(img_width, tile_size, false, Image.FORMAT_RGBA8)
 	
 	var i = 0
 	for id in biomas:
 		var base_color = biomas[id]["color"]
+		var start_x = i * (tile_size + ATLAS_SEPARATION)
 		
 		# Generación Procedural de Textura (Pixel por Pixel)
 		for x in range(tile_size):
@@ -88,7 +91,7 @@ func setup_atlas_and_physics():
 					if randf() < ratio:
 						final_color = mix_color
 				
-				img.set_pixel( (i * tile_size) + x, y, final_color )
+				img.set_pixel(start_x + x, y, final_color)
 		
 		i += 1
 	
@@ -96,6 +99,7 @@ func setup_atlas_and_physics():
 	var source = TileSetAtlasSource.new()
 	source.texture = ImageTexture.create_from_image(img)
 	source.texture_region_size = Vector2i(tile_size, tile_size)
+	source.separation = Vector2i(ATLAS_SEPARATION, 0) # Tell Godot about the gaps
 	
 	ts.add_source(source)
 	
