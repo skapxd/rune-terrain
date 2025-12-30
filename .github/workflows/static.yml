@@ -1,0 +1,65 @@
+name: "Deploy to GitHub Pages"
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  GODOT_VERSION: 4.5.1
+  EXPORT_NAME: Web
+
+jobs:
+  export_web:
+    name: Web Export
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: ${{ env.GODOT_VERSION }}
+          use-dotnet: false
+
+      - name: Cache Export Templates
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-export-templates-${{ env.GODOT_VERSION }}
+
+      - name: Setup Export Templates
+        if: steps.cache-templates.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          wget https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-stable/Godot_v${{ env.GODOT_VERSION }}-stable_export_templates.tpz
+          unzip Godot_v${{ env.GODOT_VERSION }}-stable_export_templates.tpz
+          mv templates/* ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable/
+          rm -f Godot_v${{ env.GODOT_VERSION }}-stable_export_templates.tpz
+
+      - name: Web Build
+        run: |
+          mkdir -p build/web
+          godot --headless --verbose --export-release "${{ env.EXPORT_NAME }}" build/web/index.html
+
+      - name: Add .nojekyll
+        run: touch build/web/.nojekyll
+
+      - name: Add COOP/COEP headers
+        # Godot 4 Web requires these headers for SharedArrayBuffer support
+        run: |
+          cd build/web
+          echo '/*
+            Cross-Origin-Opener-Policy: same-origin
+            Cross-Origin-Embedder-Policy: require-corp' > _headers
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: build/web
+          branch: gh-pages
