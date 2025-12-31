@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*" # Se dispara al subir tags como v1.0, v0.5, etc.
 
 env:
   GODOT_VERSION: 4.5.1
@@ -59,6 +61,8 @@ jobs:
             Cross-Origin-Embedder-Policy: require-corp' > _headers
 
       - name: Deploy to GitHub Pages
+        # Solo desplegar a GH Pages si es la rama main (no tags, para evitar sobreescribir con versiones viejas si pusheas un tag antiguo)
+        if: github.ref == 'refs/heads/main'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: build/web
@@ -67,6 +71,8 @@ jobs:
   export_windows:
     name: Windows Export
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Necesario para crear Releases
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -98,8 +104,23 @@ jobs:
           mkdir -p build/windows
           godot --headless --verbose --export-release "${{ env.EXPORT_NAME_WIN }}" build/windows/rune-terrain.exe
 
+      - name: Zip Build for Release
+        run: |
+          cd build/windows
+          zip -r ../../rune-terrain-windows.zip .
+          cd ../..
+
       - name: Upload Artifact
+        # Siempre subimos el artefacto para que lo puedas descargar desde la pestaña Actions
         uses: actions/upload-artifact@v4
         with:
           name: rune-terrain-windows
           path: build/windows
+
+      - name: Create Release
+        # ESTO ES LO NUEVO: Solo corre si el push fue un tag (v*)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: rune-terrain-windows.zip
+          generate_release_notes: true
