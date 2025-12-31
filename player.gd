@@ -6,6 +6,21 @@ const FRICTION = 1200.0
 
 @onready var tilemap: TileMapLayer = $"../GeneradorDeMundo"
 
+func _ready():
+	# Añadir soporte para WASD a las acciones de movimiento predeterminadas
+	var wasd_map = {
+		"ui_up": KEY_W,
+		"ui_left": KEY_A,
+		"ui_down": KEY_S,
+		"ui_right": KEY_D
+	}
+	
+	for action in wasd_map:
+		var ev = InputEventKey.new()
+		ev.physical_keycode = wasd_map[action]
+		if not InputMap.action_has_event(action, ev):
+			InputMap.action_add_event(action, ev)
+
 func _physics_process(delta):
 	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	
